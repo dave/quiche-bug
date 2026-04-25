@@ -1,0 +1,3 @@
+# Build artifacts
+client/quic-test-client
+client/qlog/

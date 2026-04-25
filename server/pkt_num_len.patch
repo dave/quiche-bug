@@ -1,0 +1,40 @@
+From: Reproducer <reproducer@example.com>
+Subject: [PATCH] packet: floor pkt_num_len at 2 bytes
+
+The current implementation can return 1 byte when num_unacked < 128.
+This is the minimum permitted by RFC 9000 §17.1, but is unsafe in
+practice: if the receiver observes more than 128 packets reordered
+(or an attacker injects spoofed-but-otherwise-plausible packets),
+the 1-byte truncation collapses the entire valid range and the
+decoded full packet number can land on the wrong candidate. The
+AEAD nonce is derived from the full packet number, so decryption
+fails for an otherwise-good packet.
+
+The reference Go implementation (quic-go) refuses 1-byte truncation
+for exactly this reason — see PacketNumberLengthForHeader in
+internal/protocol/packet_number.go: "it never chooses a
+PacketNumberLen of 1 byte, since this is too short under certain
+circumstances".
+
+Floor the result at 2 bytes to match.
+---
+ quiche/src/packet.rs | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/quiche/src/packet.rs b/quiche/src/packet.rs
+--- a/quiche/src/packet.rs
++++ b/quiche/src/packet.rs
+@@ -569,8 +569,11 @@ pub fn pkt_num_len(pn: u64, largest_acked: u64) -> usize {
+     let num_unacked: u64 = pn.saturating_sub(largest_acked) + 1;
+     // computes ceil of num_unacked.log2() + 1
+     let min_bits = u64::BITS - num_unacked.leading_zeros() + 1;
+-    // get the num len in bytes
+-    min_bits.div_ceil(8) as usize
++    // get the num len in bytes; floor at 2 to avoid the 1-byte
++    // truncation ambiguity that breaks AEAD decryption when the
++    // receiver sees more than 128 packets reordered (the entire
++    // valid range collapses, so the decoder picks a wrong full pn).
++    (min_bits.div_ceil(8) as usize).max(2)
+ }
+
+ pub fn decrypt_hdr(

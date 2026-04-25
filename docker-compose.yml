@@ -1,0 +1,29 @@
+# Convenience compose file for running the reproducer server locally.
+#
+# Builds two services side-by-side: stock and patched. Pick one:
+#
+#   docker compose up server-stock
+#   docker compose up server-patched
+#
+# Both services need NET_ADMIN to install the tc/netem qdisc.
+
+services:
+  server-stock:
+    build:
+      context: ./server
+      args:
+        APPLY_PATCH: "0"
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - "4443:4443/udp"
+
+  server-patched:
+    build:
+      context: ./server
+      args:
+        APPLY_PATCH: "1"
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - "4443:4443/udp"
