@@ -13,7 +13,7 @@ fails to decrypt an otherwise-good packet.
 
 The reference Go implementation, [quic-go](https://github.com/quic-go/quic-go),
 explicitly refuses 1-byte truncation for this exact reason. From
-[`internal/protocol/packet_number.go`](https://github.com/quic-go/quic-go/blob/master/internal/protocol/packet_number.go):
+[`internal/protocol/packet_number.go`](https://github.com/quic-go/quic-go/blob/master/internal/protocol/packet_number.go#L41-L42):
 
 > // ... it never chooses a `PacketNumberLen` of 1 byte, since this is
 > // too short under certain circumstances ...
